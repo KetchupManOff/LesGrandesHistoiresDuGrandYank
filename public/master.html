@@ -1,0 +1,411 @@
+on<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Story Master & Éditeur</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    .tab-btn {
+      background: #ccc;
+      color: #333;
+    }
+    .tab-btn.active {
+      background: #3498db;
+      color: white;
+    }
+    .editor-section {
+      display: none;
+    }
+    .line-editor {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .line-editor input, .line-editor textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 5px;
+    }
+    .line-editor label {
+      font-weight: bold;
+      font-size: 0.9em;
+      color: #555;
+    }
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #login-section {
+      text-align: center;
+      margin-top: 50px;
+    }
+    #app-section {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; background: #3498db; color: white; border: none; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-size: 14px;">⛶ Plein écran</button>
+  
+  <div class="container">
+    
+    <!-- Login Section -->
+    <div class="card" id="login-section">
+      <h2>Accès Sécurisé</h2>
+      <p>Veuillez entrer le mot de passe du Story Master</p>
+      <input type="password" id="master-password" placeholder="Mot de passe">
+      <button onclick="login()">Se connecter</button>
+      <p style="color: red; display: none;" id="login-error">Mot de passe incorrect</p>
+      <p><a href="index.html">Retour à l'accueil</a></p>
+    </div>
+
+    <!-- Main App Section (Hidden by default) -->
+    <div id="app-section">
+      <h1>Contrôle du Story Master</h1>
+      
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-play" onclick="switchTab('play')">Mode Lecture (Live)</button>
+        <button class="tab-btn" id="tab-edit" onclick="switchTab('edit')">Éditeur d'Histoire</button>
+      </div>
+
+      <!-- PLAY MODE -->
+      <div id="play-mode">
+        <div class="card" id="setup-section">
+          <h2>Choisir une histoire</h2>
+          <select id="story-select"></select>
+          <button onclick="startStory()">Démarrer l'histoire</button>
+        </div>
+
+        <div class="card" id="control-section" style="display: none;">
+          <h2 id="story-title"></h2>
+          <div class="line-preview" id="current-line-preview">L'histoire n'a pas encore commencé.</div>
+          <div class="controls">
+            <button onclick="prevLine()" id="btn-prev">Précédent (Flèche Gauche)</button>
+            <button onclick="nextLine()" id="btn-next">Suivant (Flèche Droite)</button>
+          </div>
+          <p style="text-align: center; margin-top: 20px;"><button onclick="stopStory()">Arrêter et choisir une autre histoire</button></p>
+        </div>
+      </div>
+
+      <!-- EDIT MODE -->
+      <div id="edit-mode" class="editor-section">
+        <div class="card">
+          <div class="header-actions">
+            <h2>Éditeur</h2>
+            <div>
+              <button onclick="addNewStory()" style="background-color: #2ecc71;">+ Nouvelle Histoire</button>
+              <button onclick="saveAllStories()" style="background-color: #e67e22;" id="btn-save">💾 Sauvegarder tout</button>
+            </div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <label>Éditer l'histoire : </label>
+            <select id="editor-story-select" onchange="loadStoryToEditor()"></select>
+          </div>
+          
+          <div id="editor-container" style="display: none;">
+            <div>
+              <label><strong>Titre :</strong></label>
+              <input type="text" id="edit-title" onchange="updateCurrentStoryMeta()">
+            </div>
+            <div style="margin-top: 10px;">
+              <label><strong>Identifiant (URL) :</strong></label>
+              <input type="text" id="edit-id" onchange="updateCurrentStoryMeta()">
+            </div>
+            <div style="margin-top: 10px;">
+              <label><strong>Personnages (séparés par des virgules) :</strong></label>
+              <input type="text" id="edit-characters" onchange="updateCurrentStoryMeta()">
+            </div>
+            
+            <h3 style="margin-top: 20px;">Lignes de dialogue</h3>
+            <div id="lines-editor-container"></div>
+            
+            <button onclick="addLine()" style="margin-top: 10px;">+ Ajouter une ligne</button>
+            <button onclick="deleteCurrentStory()" style="margin-top: 10px; background-color: #e74c3c; float: right;">Supprimer cette histoire</button>
+          </div>
+        </div>
+      </div>
+
+      <p style="text-align: center; margin-top: 20px;"><a href="index.html">Quitter le panneau Master</a></p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    const socket = io();
+    let stories = [];
+    let currentStory = null;
+    let editingStoryIndex = -1;
+
+    // --- LOGIN ---
+    function login() {
+      const pwd = document.getElementById('master-password').value;
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('app-section').style.display = 'block';
+          loadStories();
+        } else {
+          document.getElementById('login-error').style.display = 'block';
+        }
+      });
+    }
+
+    // --- TABS ---
+    function switchTab(tab) {
+      document.getElementById('tab-play').classList.remove('active');
+      document.getElementById('tab-edit').classList.remove('active');
+      document.getElementById('play-mode').style.display = 'none';
+      document.getElementById('edit-mode').style.display = 'none';
+
+      if (tab === 'play') {
+        document.getElementById('tab-play').classList.add('active');
+        document.getElementById('play-mode').style.display = 'block';
+        refreshPlaySelect();
+      } else {
+        document.getElementById('tab-edit').classList.add('active');
+        document.getElementById('edit-mode').style.display = 'block';
+        refreshEditorSelect();
+      }
+    }
+
+    // --- DATA LOADING ---
+    function loadStories() {
+      fetch('/api/stories').then(res => res.json()).then(data => {
+        stories = data;
+        refreshPlaySelect();
+        refreshEditorSelect();
+      });
+    }
+
+    function refreshPlaySelect() {
+      const select = document.getElementById('story-select');
+      select.innerHTML = '';
+      stories.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.title;
+        select.appendChild(opt);
+      });
+    }
+
+    function refreshEditorSelect() {
+      const select = document.getElementById('editor-story-select');
+      select.innerHTML = '<option value="-1">-- Choisir une histoire --</option>';
+      stories.forEach((s, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = s.title;
+        select.appendChild(opt);
+      });
+      if (editingStoryIndex >= 0) {
+        select.value = editingStoryIndex;
+        loadStoryToEditor();
+      } else {
+        document.getElementById('editor-container').style.display = 'none';
+      }
+    }
+
+    // --- PLAY MODE ---
+    function startStory() {
+      const storyId = document.getElementById('story-select').value;
+      fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storyId })
+      }).then(res => res.json()).then(data => {
+        if(data.success) {
+          document.getElementById('setup-section').style.display = 'none';
+          document.getElementById('control-section').style.display = 'block';
+        }
+      });
+    }
+
+    function stopStory() {
+      document.getElementById('setup-section').style.display = 'block';
+      document.getElementById('control-section').style.display = 'none';
+    }
+
+    function nextLine() { fetch('/api/next', { method: 'POST' }); }
+    function prevLine() { fetch('/api/prev', { method: 'POST' }); }
+
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('play-mode').style.display === 'none') return;
+      if (document.getElementById('control-section').style.display === 'none') return;
+      // Do not trigger if typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) {
+        e.preventDefault();
+        nextLine();
+      } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) {
+        e.preventDefault();
+        prevLine();
+      }
+    });
+
+    socket.on('story_update', (data) => {
+      const { story, lineIndex } = data;
+      if (!story) return;
+      currentStory = story;
+      
+      if (document.getElementById('control-section').style.display !== 'none') {
+        document.getElementById('story-title').textContent = story.title;
+        const preview = document.getElementById('current-line-preview');
+        if (lineIndex < 0) {
+          preview.innerHTML = "<em>L'histoire va commencer. Cliquez sur 'Ligne Suivante'.</em>";
+        } else if (lineIndex >= story.lines.length) {
+          preview.innerHTML = "<strong>Fin de l'histoire.</strong>";
+        } else {
+          const line = story.lines[lineIndex];
+          let instruction = line.instruction ? `<br><small><em>(${line.instruction})</em></small>` : '';
+          let tvText = line.tvText ? `<br><br><span style="color: #7f8c8d;">Écran TV : ${line.tvText}</span>` : '';
+          preview.innerHTML = `<strong>${line.character}:</strong> ${line.text}${instruction}${tvText}`;
+        }
+      }
+    });
+
+    // --- EDITOR MODE ---
+    function addNewStory() {
+      const newStory = {
+        id: "nouvelle-histoire-" + Date.now(),
+        title: "Nouvelle Histoire",
+        characters: ["Personnage 1", "Personnage 2"],
+        lines: []
+      };
+      stories.push(newStory);
+      editingStoryIndex = stories.length - 1;
+      refreshEditorSelect();
+    }
+
+    function loadStoryToEditor() {
+      editingStoryIndex = parseInt(document.getElementById('editor-story-select').value);
+      if (editingStoryIndex < 0) {
+        document.getElementById('editor-container').style.display = 'none';
+        return;
+      }
+      
+      const s = stories[editingStoryIndex];
+      document.getElementById('editor-container').style.display = 'block';
+      document.getElementById('edit-title').value = s.title;
+      document.getElementById('edit-id').value = s.id;
+      document.getElementById('edit-characters').value = s.characters.join(', ');
+      
+      renderLinesEditor();
+    }
+
+    function updateCurrentStoryMeta() {
+      if (editingStoryIndex < 0) return;
+      const s = stories[editingStoryIndex];
+      s.title = document.getElementById('edit-title').value;
+      s.id = document.getElementById('edit-id').value;
+      s.characters = document.getElementById('edit-characters').value.split(',').map(c => c.trim()).filter(c => c);
+      refreshEditorSelect();
+    }
+
+    function renderLinesEditor() {
+      const container = document.getElementById('lines-editor-container');
+      container.innerHTML = '';
+      const s = stories[editingStoryIndex];
+      
+      s.lines.forEach((line, index) => {
+        const div = document.createElement('div');
+        div.className = 'line-editor';
+        div.innerHTML = `
+          <div style="display:flex; justify-content:space-between;">
+            <strong>Ligne #${index + 1}</strong>
+            <button onclick="removeLine(${index})" style="background:#e74c3c; padding:2px 5px; font-size:12px;">X</button>
+          </div>
+          <label>Personnage</label>
+          <select onchange="updateLine(${index}, 'character', this.value)">
+            ${s.characters.map(c => `<option value="${c}" ${line.character === c ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+          <label>Texte à dire</label>
+          <textarea onchange="updateLine(${index}, 'text', this.value)">${line.text || ''}</textarea>
+          <label>Instruction de jeu (optionnel)</label>
+          <input type="text" value="${line.instruction || ''}" onchange="updateLine(${index}, 'instruction', this.value)">
+          <label>Texte TV (optionnel)</label>
+          <textarea onchange="updateLine(${index}, 'tvText', this.value)">${line.tvText || ''}</textarea>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function updateLine(index, field, value) {
+      if (editingStoryIndex < 0) return;
+      stories[editingStoryIndex].lines[index][field] = value;
+    }
+
+    function addLine() {
+      if (editingStoryIndex < 0) return;
+      const s = stories[editingStoryIndex];
+      s.lines.push({
+        character: s.characters[0] || "",
+        text: "",
+        instruction: "",
+        tvText: ""
+      });
+      renderLinesEditor();
+    }
+
+    function removeLine(index) {
+      if (editingStoryIndex < 0) return;
+      stories[editingStoryIndex].lines.splice(index, 1);
+      renderLinesEditor();
+    }
+
+    function deleteCurrentStory() {
+      if (editingStoryIndex < 0) return;
+      if (confirm("Voulez-vous vraiment supprimer cette histoire ?")) {
+        stories.splice(editingStoryIndex, 1);
+        editingStoryIndex = -1;
+        refreshEditorSelect();
+      }
+    }
+
+    function saveAllStories() {
+      const btn = document.getElementById('btn-save');
+      btn.textContent = "Sauvegarde en cours...";
+      
+      fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newStories: stories })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          btn.textContent = "✅ Sauvegardé !";
+          setTimeout(() => btn.textContent = "💾 Sauvegarder tout", 2000);
+        } else {
+          alert("Erreur de sauvegarde");
+          btn.textContent = "💾 Sauvegarder tout";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

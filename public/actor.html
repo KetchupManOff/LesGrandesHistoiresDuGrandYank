@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Acteur</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; background: #3498db; color: white; border: none; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-size: 14px;">⛶ Plein écran</button>
+  
+  <div class="container">
+    
+    <div id="setup-section" class="card">
+      <h1>Choix du rôle</h1>
+      <div class="setup-form">
+        <div>
+          <label>Histoire en cours :</label>
+          <strong id="current-story-title">Aucune histoire lancée</strong>
+        </div>
+        
+        <div>
+          <label>Choisissez votre personnage :</label>
+          <select id="character-select" disabled>
+            <option>En attente d'une histoire...</option>
+          </select>
+        </div>
+        
+        <button id="join-btn" onclick="joinStory()" disabled>Rejoindre la scène</button>
+      </div>
+      <p style="text-align: center; margin-top: 20px;"><a href="index.html">Retour</a></p>
+    </div>
+
+    <div id="actor-section" class="actor-screen" style="display: none;">
+      <h2 id="actor-role-title"></h2>
+      
+      <div id="line-container">
+        <!-- Lines or wait message will go here -->
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    const socket = io();
+    let currentStory = null;
+    let myCharacter = null;
+
+    socket.on('story_update', (data) => {
+      const { story, lineIndex } = data;
+      
+      // Update setup screen if not joined
+      if (story && !myCharacter) {
+        document.getElementById('current-story-title').textContent = story.title;
+        const select = document.getElementById('character-select');
+        
+        if (currentStory?.id !== story.id) {
+          select.innerHTML = '';
+          story.characters.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            select.appendChild(opt);
+          });
+          select.disabled = false;
+          document.getElementById('join-btn').disabled = false;
+        }
+      }
+      
+      currentStory = story;
+
+      // If joined, update the display
+      if (myCharacter && currentStory) {
+        updateActorDisplay(lineIndex);
+      }
+    });
+
+    function joinStory() {
+      myCharacter = document.getElementById('character-select').value;
+      if (!myCharacter) return;
+
+      document.getElementById('setup-section').style.display = 'none';
+      document.getElementById('actor-section').style.display = 'flex';
+      document.getElementById('actor-role-title').textContent = `Rôle : ${myCharacter}`;
+      
+      // Request current state to display correct line
+      fetch('/api/state').then(res => res.json()).then(data => {
+        updateActorDisplay(data.currentLineIndex);
+      });
+    }
+
+    function updateActorDisplay(lineIndex) {
+      const container = document.getElementById('line-container');
+      
+      if (lineIndex < 0) {
+        container.innerHTML = '<div class="waiting-message">La pièce va bientôt commencer... Chut !</div>';
+        return;
+      }
+
+      if (lineIndex >= currentStory.lines.length) {
+        container.innerHTML = '<div class="waiting-message">Fin de l\'histoire. Applaudissements !</div>';
+        return;
+      }
+
+      const currentLine = currentStory.lines[lineIndex];
+
+      if (currentLine.character === myCharacter) {
+        // It's my turn to speak!
+        let instructionHtml = currentLine.instruction ? `<div class="instruction">(${currentLine.instruction})</div>` : '';
+        container.innerHTML = `
+          ${instructionHtml}
+          <div class="line-display">${currentLine.text}</div>
+        `;
+      } else {
+        // Not my turn
+        container.innerHTML = `<div class="waiting-message">Écoutez attentivement...</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

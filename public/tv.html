@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Écran TV</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Specific styles for TV view */
+    body {
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+    
+    .tv-screen {
+      text-align: center;
+      padding: 50px;
+      width: 80%;
+      max-width: 1200px;
+    }
+
+    .tv-text {
+      font-size: 3.5em;
+      line-height: 1.4;
+      text-shadow: 0 0 10px rgba(255,255,255,0.3);
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  
+  <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; opacity: 0.3; background: transparent; color: white; border: 1px solid white; cursor: pointer; padding: 5px 10px;">⛶ Plein écran</button>
+
+  <div class="tv-screen">
+    <div id="tv-content" class="tv-text">
+      En attente du début de la représentation...
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    const socket = io();
+
+    socket.on('story_update', (data) => {
+      const { story, lineIndex } = data;
+      const content = document.getElementById('tv-content');
+      
+      if (!story) {
+        content.innerHTML = 'En attente d\'une histoire...';
+        return;
+      }
+
+      if (lineIndex < 0) {
+        content.innerHTML = story.title;
+        return;
+      }
+
+      if (lineIndex >= story.lines.length) {
+        content.innerHTML = "FIN";
+        return;
+      }
+
+      const currentLine = story.lines[lineIndex];
+      if (currentLine.tvText) {
+        // Force re-trigger of animation by replacing the element
+        const newText = currentLine.tvText;
+        if (content.innerHTML !== newText) {
+            content.style.animation = 'none';
+            content.offsetHeight; /* trigger reflow */
+            content.style.animation = null; 
+            content.innerHTML = newText;
+        }
+      } else {
+        content.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>
