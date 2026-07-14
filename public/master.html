@@ -285,7 +285,12 @@
           const line = story.lines[lineIndex];
           let instruction = line.instruction ? `<br><small><em>(${line.instruction})</em></small>` : '';
           let tvText = line.tvText ? `<br><br><span style="color: #7f8c8d;">Écran TV : ${line.tvText}</span>` : '';
-          preview.innerHTML = `<strong>${line.character}:</strong> ${line.text}${instruction}${tvText}`;
+          if (!line.character || line.character === 'Aucun') {
+            let detailText = line.text ? `${line.text}${instruction}` : '<em>(Aucun acteur ne parle)</em>';
+            preview.innerHTML = `<strong>[Aucun acteur]:</strong> ${detailText}${tvText}`;
+          } else {
+            preview.innerHTML = `<strong>${line.character}:</strong> ${line.text}${instruction}${tvText}`;
+          }
         }
       }
     });
@@ -343,6 +348,7 @@
           </div>
           <label>Personnage</label>
           <select onchange="updateLine(${index}, 'character', this.value)">
+            <option value="Aucun" ${(!line.character || line.character === 'Aucun') ? 'selected' : ''}>-- Aucun (seulement TV) --</option>
             ${s.characters.map(c => `<option value="${c}" ${line.character === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
           <label>Texte à dire</label>
