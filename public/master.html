@@ -117,15 +117,15 @@
           <div id="editor-container" style="display: none;">
             <div>
               <label><strong>Titre :</strong></label>
-              <input type="text" id="edit-title" onchange="updateCurrentStoryMeta()">
+              <input type="text" id="edit-title" onchange="updateCurrentStoryMeta('title')">
             </div>
             <div style="margin-top: 10px;">
               <label><strong>Identifiant (URL) :</strong></label>
-              <input type="text" id="edit-id" onchange="updateCurrentStoryMeta()">
+              <input type="text" id="edit-id" onchange="updateCurrentStoryMeta('id')">
             </div>
             <div style="margin-top: 10px;">
               <label><strong>Personnages (séparés par des virgules) :</strong></label>
-              <input type="text" id="edit-characters" onchange="updateCurrentStoryMeta()">
+              <input type="text" id="edit-characters" onchange="updateCurrentStoryMeta('characters')">
             </div>
             
             <h3 style="margin-top: 20px;">Lignes de dialogue</h3>
@@ -324,13 +324,22 @@
       renderLinesEditor();
     }
 
-    function updateCurrentStoryMeta() {
+    function updateCurrentStoryMeta(field) {
       if (editingStoryIndex < 0) return;
       const s = stories[editingStoryIndex];
-      s.title = document.getElementById('edit-title').value;
-      s.id = document.getElementById('edit-id').value;
-      s.characters = document.getElementById('edit-characters').value.split(',').map(c => c.trim()).filter(c => c);
-      refreshEditorSelect();
+      
+      if (field === 'title') {
+        s.title = document.getElementById('edit-title').value;
+        const select = document.getElementById('editor-story-select');
+        if (select && select.options[editingStoryIndex + 1]) {
+          select.options[editingStoryIndex + 1].textContent = s.title;
+        }
+      } else if (field === 'id') {
+        s.id = document.getElementById('edit-id').value;
+      } else if (field === 'characters') {
+        s.characters = document.getElementById('edit-characters').value.split(',').map(c => c.trim()).filter(c => c);
+        renderLinesEditor();
+      }
     }
 
     function renderLinesEditor() {
