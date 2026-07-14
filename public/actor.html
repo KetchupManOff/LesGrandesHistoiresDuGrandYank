@@ -5,7 +5,7 @@
   <title>Acteur</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="centered-body">
   <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; background: #3498db; color: white; border: none; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-size: 14px;">⛶ Plein écran</button>
   
   <div class="container">
@@ -114,7 +114,10 @@
 
       const currentLine = currentStory.lines[lineIndex];
 
-      if (currentLine.character === myCharacter) {
+      // Support single or multiple characters (comma-separated list)
+      const selectedChars = currentLine.character ? currentLine.character.split(',').map(c => c.trim()) : [];
+
+      if (selectedChars.includes(myCharacter)) {
         // It's my turn to speak!
         let instructionHtml = currentLine.instruction ? `<div class="instruction">(${currentLine.instruction})</div>` : '';
         container.innerHTML = `

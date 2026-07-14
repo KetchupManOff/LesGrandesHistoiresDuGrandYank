@@ -1,4 +1,4 @@
- de manbody {
+body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
@@ -196,4 +196,17 @@ select, input {
   align-items: center;
   gap: 15px;
   margin-top: 50px;
+}
+
+.centered-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.centered-body .container {
+  width: 100%;
 }

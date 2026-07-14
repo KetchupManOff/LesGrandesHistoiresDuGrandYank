@@ -7,7 +7,7 @@
   <style>
     /* Specific styles for TV view */
     body {
-      background-color: #000;
+      background: radial-gradient(circle at center, #111520 0%, #000000 100%);
       color: #fff;
       display: flex;
       flex-direction: column;
@@ -28,24 +28,124 @@
     .tv-text {
       font-size: 3.5em;
       line-height: 1.4;
-      text-shadow: 0 0 10px rgba(255,255,255,0.3);
-      animation: fadeIn 1s ease-in-out;
+      font-weight: 300;
+      letter-spacing: 1.5px;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 0 0 35px rgba(52, 152, 219, 0.25);
+      animation: cinematicFade 1.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+    @keyframes cinematicFade {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Curtains overlay */
+    .curtains-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 100;
+      pointer-events: none;
+      display: flex;
+    }
+    
+    .curtain {
+      width: 50vw;
+      height: 100vh;
+      background: repeating-linear-gradient(
+        to right,
+        #200206 0px,
+        #35050c 50px,
+        #4f0913 100px,
+        #35050c 150px,
+        #200206 200px
+      ); /* Ultra-soft, natural 3D vertical folds with smooth lighting */
+      background-size: 200px 100%;
+      box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9); /* Deep shadow for drama */
+      transition: transform 2.5s cubic-bezier(0.77, 0, 0.175, 1);
+    }
+    
+    .left-curtain {
+      transform: translateX(0);
+      border-right: 2px solid #220206;
+      animation: foldRippleLeft 12s ease-in-out infinite;
+    }
+    
+    .right-curtain {
+      transform: translateX(0);
+      border-left: 2px solid #220206;
+      animation: foldRippleRight 14s ease-in-out infinite;
+    }
+
+    @keyframes foldRippleLeft {
+      0%, 100% {
+        background-position-x: 0px;
+      }
+      50% {
+        background-position-x: 20px; /* Slow gentle wind ripple */
+      }
+    }
+
+    @keyframes foldRippleRight {
+      0%, 100% {
+        background-position-x: 0px;
+      }
+      50% {
+        background-position-x: -20px; /* Slightly offset ripple */
+      }
+    }
+    
+    .curtain-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #dfba6b; /* Sophisticated gold */
+      font-size: 2.8em;
+      text-align: center;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-shadow: 0 4px 15px rgba(0,0,0,0.9);
+      z-index: 101;
+      width: 80%;
+      transition: opacity 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+    }
+    
+    /* Opened state */
+    .curtains-container.opened .left-curtain {
+      transform: translateX(-100%);
+    }
+    
+    .curtains-container.opened .right-curtain {
+      transform: translateX(100%);
+    }
+    
+    .curtains-container.opened .curtain-text {
+      opacity: 0;
     }
   </style>
 </head>
 <body>
   
-  <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; opacity: 0.3; background: transparent; color: white; border: 1px solid white; cursor: pointer; padding: 5px 10px;">⛶ Plein écran</button>
+  <button onclick="toggleFullScreen()" style="position: absolute; top: 10px; right: 10px; opacity: 0.3; background: transparent; color: white; border: 1px solid white; cursor: pointer; padding: 5px 10px; z-index: 200;">⛶ Plein écran</button>
+
+  <!-- Curtains overlay -->
+  <div id="curtains-container" class="curtains-container">
+    <div class="curtain left-curtain"></div>
+    <div class="curtain right-curtain"></div>
+    <div id="curtain-text" class="curtain-text">En attente du début de la représentation...</div>
+  </div>
 
   <div class="tv-screen">
-    <div id="tv-content" class="tv-text">
-      En attente du début de la représentation...
-    </div>
+    <div id="tv-content" class="tv-text"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -65,16 +165,25 @@
     socket.on('story_update', (data) => {
       const { story, lineIndex } = data;
       const content = document.getElementById('tv-content');
+      const curtains = document.getElementById('curtains-container');
+      const curtainText = document.getElementById('curtain-text');
       
       if (!story) {
-        content.innerHTML = 'En attente d\'une histoire...';
+        curtains.classList.remove('opened');
+        curtainText.innerHTML = "En attente d'une histoire...";
+        content.innerHTML = '';
         return;
       }
 
       if (lineIndex < 0) {
-        content.innerHTML = story.title;
+        curtains.classList.remove('opened');
+        curtainText.innerHTML = story.title;
+        content.innerHTML = '';
         return;
       }
+
+      // Open curtains for the story lines
+      curtains.classList.add('opened');
 
       if (lineIndex >= story.lines.length) {
         content.innerHTML = "FIN";

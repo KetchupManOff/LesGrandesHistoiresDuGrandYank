@@ -13,9 +13,26 @@ app.use(express.static('public'));
 app.use(express.json());
 
 // Load stories
+const storiesPath = path.join(__dirname, 'stories.json');
+const defaultStoriesPath = path.join(__dirname, 'stories.default.json');
+
+// Initialize stories.json from stories.default.json if missing
+if (!fs.existsSync(storiesPath)) {
+  try {
+    if (fs.existsSync(defaultStoriesPath)) {
+      fs.copyFileSync(defaultStoriesPath, storiesPath);
+      console.log("stories.json initialized from stories.default.json");
+    } else {
+      fs.writeFileSync(storiesPath, JSON.stringify([], null, 2), 'utf8');
+    }
+  } catch (err) {
+    console.error("Error copying default stories:", err);
+  }
+}
+
 let stories = [];
 try {
-  const data = fs.readFileSync(path.join(__dirname, 'stories.json'), 'utf8');
+  const data = fs.readFileSync(storiesPath, 'utf8');
   stories = JSON.parse(data);
 } catch (err) {
   console.error("Error reading stories.json:", err);

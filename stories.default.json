@@ -1,0 +1,39 @@
+[
+  {
+    "id": "aventure-spatiale",
+    "title": "Perdus dans l'espace",
+    "characters": ["Commandant", "Pilote", "Mécano"],
+    "lines": [
+      { 
+        "character": "Commandant", 
+        "text": "Tout le monde est à son poste ?", 
+        "instruction": "D'un ton autoritaire et pressé",
+        "tvText": "Le vaisseau tremble violemment. La sirène d'alarme résonne dans les couloirs."
+      },
+      {
+        "character": "Aucun",
+        "text": "",
+        "instruction": "",
+        "tvText": "SOUDAINEMENT, UN SILENCE DE MORT S'INSTALLE DANS LA CABINE."
+      },
+      { 
+        "character": "Pilote", 
+        "text": "Moteurs prêts, commandant.", 
+        "instruction": "Garde son calme, concentré sur les commandes",
+        "tvText": "Sur la passerelle, les écrans de contrôle affichent des alertes rouges."
+      },
+      { 
+        "character": "Mécano", 
+        "text": "Attendez ! Il y a une fuite d'oxygène !", 
+        "instruction": "Paniqué, essoufflé",
+        "tvText": "Un nuage de gaz blanc s'échappe des conduits dans la salle des machines."
+      },
+      { 
+        "character": "Commandant", 
+        "text": "Pilote, stabilisez le vaisseau. Mécano, réparez cette fuite !", 
+        "instruction": "Crit en essayant de couvrir le bruit des alarmes",
+        "tvText": "Le Commandant s'agrippe à son siège alors que le vaisseau subit une secousse majeure."
+      }
+    ]
+  }
+]
